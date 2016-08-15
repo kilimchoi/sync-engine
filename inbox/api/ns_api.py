@@ -1,11 +1,12 @@
-import base64
 import os
 import uuid
 import json
-import gevent
 import time
-from datetime import datetime
+import base64
+import gevent
 import itertools
+from datetime import datetime
+from collections import namedtuple
 
 from flask import (request, g, Blueprint, make_response, Response,
                    stream_with_context)
@@ -89,10 +90,26 @@ if config.get('DEBUG_PROFILING_ON'):
     from inbox.util.debug import attach_pyinstrument_profiler
     attach_pyinstrument_profiler()
 
+APIFeatures = namedtuple('APIFeatures', ['optimistic_updates'])
+
+# The Nylas API supports versioning to be fully compatible with
+# older clients and apps. Users can specify the version of the
+# API they want to work with by setting the X-Api-Version API
+# header. API versions are defined as dates and stored in the
+# API_VERSIONS list.
+API_VERSIONS = ['2016-03-07', '2016-08-09']
 
 @app.before_request
 def start():
-    g.api_version = int(request.headers.get('X-Api-Version', 1))
+    g.api_version = request.headers.get('X-Api-Version', API_VERSIONS[0])
+
+    if g.api_version not in API_VERSIONS:
+        g.api_version = API_VERSIONS[0]
+
+    if g.api_version == API_VERSIONS[0]:
+        g.api_features = APIFeatures(optimistic_updates=True)
+    else:
+        g.api_features = APIFeatures(optimistic_updates=False)
 
     engine = engine_manager.get_for_id(g.namespace_id)
     g.db_session = new_session(engine)
@@ -303,11 +320,10 @@ def thread_api_update(public_id):
     if not isinstance(data, dict):
         raise InputError('Invalid request body')
 
-    if g.api_version == 1:
-        update_thread(thread, data, g.db_session, optimistic=True)
+    if g.api_features.optimistic_updates:
+        update_thread(thread, data, g.db_session, True)
     else:
-        # API versions > 1 don't have optimistic updates.
-        update_thread(thread, data, g.db_session, optimistic=False)
+        update_thread(thread, data, g.db_session, False)
 
     return g.encoder.jsonify(thread)
 
@@ -467,11 +483,11 @@ def message_update_api(public_id):
     if not isinstance(data, dict):
         raise InputError('Invalid request body')
 
-    if g.api_version == 1:
-        update_message(message, data, g.db_session, optimistic=True)
+    if g.api_features.optimistic_updates:
+        update_message(message, data, g.db_session, True)
     else:
         # API versions > 1 don't update optimistically
-        update_message(message, data, g.db_session, optimistic=False)
+        update_message(message, data, g.db_session, False)
 
     return g.encoder.jsonify(message)
 
@@ -597,7 +613,7 @@ def folder_label_update_api(public_id):
 
     current_name = category.display_name
 
-    if g.api_version == 1:
+    if g.api_features.optimistic_updates:
         # Update optimistically.
         category.display_name = display_name
         g.db_session.flush()
@@ -641,8 +657,8 @@ def folder_label_delete_api(public_id):
                 "Folder {} cannot be deleted because it contains messages.".
                 format(public_id))
 
-        if g.api_version == 1:
-            # Optimistically update folders.
+
+        if g.api_features.optimistic_updates:
             deleted_at = datetime.utcnow()
             category.deleted_at = deleted_at
             folders = category.folders if g.namespace.account.discriminator \
@@ -653,8 +669,7 @@ def folder_label_delete_api(public_id):
         schedule_action('delete_folder', category, g.namespace.id,
                         g.db_session)
     else:
-        if g.api_version == 1:
-            # Optimistically update labels.
+        if g.api_features.optimistic_updates:
             deleted_at = datetime.utcnow()
             category.deleted_at = deleted_at
             for label in category.labels:
@@ -859,8 +874,15 @@ def event_update_api(public_id):
             Event.namespace_id == g.namespace.id).one()
     except NoResultFound:
         raise NotFoundError("Couldn't find event {0}".format(public_id))
+
+    # iCalendar-imported files are read-only by default but let's give a
+    # slightly more helpful error message.
+    if event.calendar == g.namespace.account.emailed_events_calendar:
+        raise InputError('Can not update an event imported from an iCalendar file.')
+
     if event.read_only:
         raise InputError('Cannot update read_only event.')
+
     if (isinstance(event, RecurringEvent) or
             isinstance(event, RecurringEventOverride)):
         raise InputError('Cannot update a recurring event yet.')
@@ -883,15 +905,14 @@ def event_update_api(public_id):
         # We're going to save this data into a JSON-like TEXT field in the
         # db. With MySQL, this means that the column will be 64k.
         # Drop the latest participants until it fits in the column.
-        while len(json.dumps(cancelled_participants)) > 2**15:
+        while len(json.dumps(cancelled_participants)) > 63000:
             cancelled_participants.pop()
 
     # Don't update an event if we don't need to.
     if noop_event_update(event, data):
         return g.encoder.jsonify(event)
 
-    if g.api_version == 1:
-        # Optimistic update!
+    if g.api_features.optimistic_updates:
         for attr in Event.API_MODIFIABLE_FIELDS:
             if attr in data:
                 setattr(event, attr, data[attr])
@@ -899,16 +920,15 @@ def event_update_api(public_id):
         event.sequence_number += 1
         g.db_session.commit()
 
-        # Don't sync back updates to autoimported events.
-        # FIXME @karim: document this and forbid it.
-        if event.calendar != account.emailed_events_calendar:
-            schedule_action('update_event', event, g.namespace.id, g.db_session,
-                            calendar_uid=event.calendar.uid,
-                            cancelled_participants=cancelled_participants,
-                            notify_participants=notify_participants)
+        schedule_action('update_event', event, g.namespace.id, g.db_session,
+                        calendar_uid=event.calendar.uid,
+                        cancelled_participants=cancelled_participants,
+                        notify_participants=notify_participants)
     else:
         # This isn't an optimistic update, so we need to store the
         # updated attributes inside the ActionLog entry.
+        # Once we've update the event on the backend, we'll be able
+        # to propagate the changes to our datastore.
         kwargs = dict(calendar_uid=event.calendar.uid,
                       event_data=data,
                       cancelled_participants=cancelled_participants,
@@ -938,12 +958,16 @@ def event_delete_api(public_id):
             namespace_id=g.namespace.id).one()
     except NoResultFound:
         raise NotFoundError("Couldn't find event {0}".format(public_id))
+
+    if event.calendar == g.namespace.account.emailed_events_calendar:
+        raise InputError('Can not update an event imported from an iCalendar file.')
+
     if event.calendar.read_only:
         raise InputError('Cannot delete event {} from read_only calendar.'.
                          format(public_id))
 
 
-    if g.api_version == 1:
+    if g.api_features.optimistic_updates:
         # Set the local event status to 'cancelled' rather than deleting it,
         # in order to be consistent with how we sync deleted events from the
         # remote, and consequently return them through the events, delta sync APIs

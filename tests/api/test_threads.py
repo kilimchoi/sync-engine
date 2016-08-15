@@ -1,6 +1,7 @@
 import json
 import datetime
 import pytest
+from inbox.api.ns_api import API_VERSIONS
 from tests.util.base import (add_fake_message, default_account,
                              add_fake_thread, db)
 from tests.api.base import api_client
@@ -106,7 +107,7 @@ def test_thread_count(db, api_client, default_account):
     assert threads['count'] == 2
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_thread_label_updates(db, api_client, default_account, api_version,
                               custom_label):
     """Check that you can update a message (optimistically or not),
@@ -134,7 +135,7 @@ def test_thread_label_updates(db, api_client, default_account, api_version,
 
     resp_data = json.loads(resp.data)
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         assert len(resp_data['labels']) == 1
         assert resp_data['labels'][0]['id'] == category.public_id
 

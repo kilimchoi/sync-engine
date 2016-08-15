@@ -2,6 +2,7 @@
 import pytest
 import json
 
+from inbox.api.ns_api import API_VERSIONS
 from inbox.util.blockstore import get_from_blockstore
 
 from tests.util.base import (add_fake_message, default_namespace,
@@ -75,7 +76,7 @@ def test_rfc822_format(stub_message_from_raw, api_client, mime_message):
     assert resp.data == get_from_blockstore(stub_message_from_raw.data_sha256)
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_sender_and_participants(stub_message, api_client, api_version):
     headers = dict()
     headers['X-Api-Version'] = api_version
@@ -93,7 +94,7 @@ def test_sender_and_participants(stub_message, api_client, api_version):
     assert 'drafts' not in resp_dict
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_expanded_threads(stub_message, api_client, api_version):
     def _check_json_thread(resp_dict):
         assert 'message_ids' not in resp_dict
@@ -223,7 +224,7 @@ def test_message_labels(db, gmail_account):
     assert 'labels' in resp_data and 'folders' not in resp_data
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_message_label_updates(db, api_client, default_account, api_version,
                                custom_label):
     """Check that you can update a message (optimistically or not),
@@ -251,7 +252,7 @@ def test_message_label_updates(db, api_client, default_account, api_version,
 
     resp_data = json.loads(resp.data)
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         assert len(resp_data['labels']) == 1
         assert resp_data['labels'][0]['id'] == category.public_id
     else:

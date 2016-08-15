@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
+from inbox.api.ns_api import API_VERSIONS
 from inbox.models.category import Category, EPOCH
 
 from tests.util.base import (add_fake_message, thread, add_fake_thread,
@@ -91,7 +92,7 @@ def test_label_get(label_client):
     assert gid_data.status_code == 200
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_folder_put(db, folder_client, api_version):
     headers = dict()
     headers['X-Api-Version'] = api_version
@@ -105,7 +106,7 @@ def test_folder_put(db, folder_client, api_version):
                                      headers=headers)
     assert pu_data.status_code == 200
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         assert json.loads(pu_data.data)['display_name'] == 'Test_Folder_Renamed'
 
         category_id = gen_folder['id']
@@ -117,7 +118,7 @@ def test_folder_put(db, folder_client, api_version):
         assert json.loads(pu_data.data)['display_name'] == gen_folder['display_name']
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_label_put(db, label_client, api_version):
     headers = dict()
     headers['X-Api-Version'] = api_version
@@ -131,7 +132,7 @@ def test_label_put(db, label_client, api_version):
                                     {"display_name": new_name}, headers=headers)
     assert pu_data.status_code == 200
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         assert json.loads(pu_data.data)['display_name'] == new_name
 
         category_id = gmail_label['id']
@@ -144,7 +145,7 @@ def test_label_put(db, label_client, api_version):
         assert json.loads(pu_data.data)['display_name'] == gmail_label['display_name']
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_folder_delete(db, generic_account, folder_client, api_version):
     headers = dict()
     headers['X-Api-Version'] = api_version
@@ -172,7 +173,7 @@ def test_folder_delete(db, generic_account, folder_client, api_version):
     d_data = folder_client.delete('/folders/{}'.format(empty_folder['id']))
     assert d_data.status_code == 200
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         # Did we update things optimistically?
         category_id = empty_folder['id']
         category = db.session.query(Category).filter(
@@ -183,7 +184,7 @@ def test_folder_delete(db, generic_account, folder_client, api_version):
     db.session.rollback()
 
 
-@pytest.mark.parametrize("api_version", [1, 2])
+@pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_label_delete(db, gmail_account, label_client, api_version):
     headers = dict()
     headers['X-Api-Version'] = api_version
@@ -204,7 +205,7 @@ def test_label_delete(db, gmail_account, label_client, api_version):
                                  headers=headers)
     assert d_data.status_code == 200
 
-    if api_version == 1:
+    if api_version == API_VERSIONS[0]:
         # Optimistic update.
         category_id = gmail_label['id']
         category = db.session.query(Category).filter(
