@@ -143,6 +143,10 @@ def remote_update_folder(crispin_client, account_id, category_id, old_name,
             category = db_session.query(Category).get(category_id)
             category.display_name = new_display_name
 
+            for folder in category.folders:
+                if folder.name == old_name:
+                    folder.name = new_display_name
+
 
 def remote_delete_folder(crispin_client, account_id, category_id):
     with session_scope(account_id) as db_session:
