@@ -114,7 +114,7 @@ def test_thread_label_updates(db, api_client, default_account, api_version,
     and that the update is queued in the ActionLog."""
 
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # Gmail threads, messages have a 'labels' field
     gmail_thread = add_fake_thread(db.session, default_account.namespace.id)
