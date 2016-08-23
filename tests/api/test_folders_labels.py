@@ -95,7 +95,7 @@ def test_label_get(label_client):
 @pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_folder_put(db, folder_client, api_version):
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # GET request for the folder ID
     g_data = folder_client.get_raw('/folders/')
@@ -121,7 +121,7 @@ def test_folder_put(db, folder_client, api_version):
 @pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_label_put(db, label_client, api_version):
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # GET request for the label ID
     g_data = label_client.get_raw('/labels/')
@@ -148,7 +148,7 @@ def test_label_put(db, label_client, api_version):
 @pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_folder_delete(db, generic_account, folder_client, api_version):
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # Make a new message
     generic_thread = add_fake_thread(db.session, generic_account.namespace.id)
@@ -187,7 +187,7 @@ def test_folder_delete(db, generic_account, folder_client, api_version):
 @pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_label_delete(db, gmail_account, label_client, api_version):
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # Make a new message
     gmail_thread = add_fake_thread(db.session, gmail_account.namespace.id)

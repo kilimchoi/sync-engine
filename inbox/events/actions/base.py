@@ -64,7 +64,6 @@ def update_event(account_id, event_id, extra_args):
             ical_file = generate_icalendar_invite(event).to_ical()
             send_invite(ical_file, event, account, invite_type='update')
 
-        # Finally, save the changes to our db.
         db_session.commit()
 
 

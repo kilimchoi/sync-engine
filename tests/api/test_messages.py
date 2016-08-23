@@ -79,7 +79,7 @@ def test_rfc822_format(stub_message_from_raw, api_client, mime_message):
 @pytest.mark.parametrize("api_version", API_VERSIONS)
 def test_sender_and_participants(stub_message, api_client, api_version):
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     resp = api_client.get_raw('/threads/{}'
                               .format(stub_message.thread.public_id),
@@ -121,7 +121,7 @@ def test_expanded_threads(stub_message, api_client, api_version):
             assert all(x in draft for x in valid_keys)
 
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # /threads/<thread_id>
     resp = api_client.get_raw(
@@ -231,7 +231,7 @@ def test_message_label_updates(db, api_client, default_account, api_version,
     and that the update is queued in the ActionLog."""
 
     headers = dict()
-    headers['X-Api-Version'] = api_version
+    headers['Api-Version'] = api_version
 
     # Gmail threads, messages have a 'labels' field
     gmail_thread = add_fake_thread(db.session, default_account.namespace.id)

@@ -130,5 +130,4 @@ def logout():
 
 
 app.register_blueprint(ns_api)
-app.register_blueprint(ns_api, url_prefix='/v2')
 app.register_blueprint(webhooks_api)  # /w/...

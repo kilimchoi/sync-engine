@@ -94,14 +94,14 @@ APIFeatures = namedtuple('APIFeatures', ['optimistic_updates'])
 
 # The Nylas API supports versioning to be fully compatible with
 # older clients and apps. Users can specify the version of the
-# API they want to work with by setting the X-Api-Version API
+# API they want to work with by setting the Api-Version API
 # header. API versions are defined as dates and stored in the
 # API_VERSIONS list.
 API_VERSIONS = ['2016-03-07', '2016-08-09']
 
 @app.before_request
 def start():
-    g.api_version = request.headers.get('X-Api-Version', API_VERSIONS[0])
+    g.api_version = request.headers.get('Api-Version', API_VERSIONS[0])
 
     if g.api_version not in API_VERSIONS:
         g.api_version = API_VERSIONS[0]
@@ -320,10 +320,8 @@ def thread_api_update(public_id):
     if not isinstance(data, dict):
         raise InputError('Invalid request body')
 
-    if g.api_features.optimistic_updates:
-        update_thread(thread, data, g.db_session, True)
-    else:
-        update_thread(thread, data, g.db_session, False)
+    update_thread(thread, data, g.db_session,
+                  g.api_features.optimistic_updates)
 
     return g.encoder.jsonify(thread)
 
@@ -483,11 +481,8 @@ def message_update_api(public_id):
     if not isinstance(data, dict):
         raise InputError('Invalid request body')
 
-    if g.api_features.optimistic_updates:
-        update_message(message, data, g.db_session, True)
-    else:
-        # API versions > 1 don't update optimistically
-        update_message(message, data, g.db_session, False)
+    update_message(message, data, g.db_session,
+                   g.api_features.optimistic_updates)
 
     return g.encoder.jsonify(message)
 

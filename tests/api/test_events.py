@@ -163,7 +163,7 @@ def test_api_pessimistic_update(db, api_client, calendar, default_account):
     }
 
     e_resp = api_client.post_data('/events', e_data,
-                                  headers={ "X-API-Version": API_VERSIONS[1] })
+                                  headers={ "Api-Version": API_VERSIONS[1] })
 
     e_resp_data = json.loads(e_resp.data)
     assert e_resp_data['object'] == 'event'
@@ -175,7 +175,7 @@ def test_api_pessimistic_update(db, api_client, calendar, default_account):
 
     e_update_data = {'title': 'new title'}
     e_put_resp = api_client.put_data('/events/' + e_id, e_update_data,
-                                     headers={ "X-API-Version": API_VERSIONS[1] })
+                                     headers={ "Api-Version": API_VERSIONS[1] })
 
     e_put_data = json.loads(e_put_resp.data)
 
@@ -224,7 +224,7 @@ def test_api_pessimistic_delete(db, api_client, calendar, default_account):
     }
 
     e_resp = api_client.post_data('/events', e_data,
-                                  headers={ "X-API-Version": API_VERSIONS[1] })
+                                  headers={ "Api-Version": API_VERSIONS[1] })
     e_resp_data = json.loads(e_resp.data)
     assert e_resp_data['object'] == 'event'
     assert e_resp_data['title'] == e_data['title']
@@ -233,7 +233,7 @@ def test_api_pessimistic_delete(db, api_client, calendar, default_account):
     e_id = e_resp_data['id']
 
     e_delete_resp = api_client.delete('/events/' + e_id,
-                                      headers={ "X-API-Version": API_VERSIONS[1] })
+                                      headers={ "Api-Version": API_VERSIONS[1] })
     assert e_delete_resp.status_code == 200
 
     e_resp = api_client.get_data('/events/' + e_id)
